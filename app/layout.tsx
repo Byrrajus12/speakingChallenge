@@ -37,6 +37,7 @@ export default function RootLayout({
     <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable}`}>
       <body className="font-sans antialiased">
         {children}
+        <Analytics />
       </body>
     </html>
   )
