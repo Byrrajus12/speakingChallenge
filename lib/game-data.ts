@@ -52,6 +52,102 @@ export const topics: Topic[] = [
     question: "Is minimalism overrated?",
     words: ["Space", "Joy", "Clutter", "Identity", "Freedom"],
   },
+  {
+    question: "Should people live in big cities?",
+    words: ["Noise", "Opportunity", "Rent", "Diversity", "Speed"],
+  },
+  {
+    question: "Can money buy happiness?",
+    words: ["Comfort", "Security", "Pressure", "Choice", "Meaning"],
+  },
+  {
+    question: "Is it better to wake up early?",
+    words: ["Routine", "Silence", "Discipline", "Sleep", "Momentum"],
+  },
+  {
+    question: "Should homework be banned?",
+    words: ["Practice", "Stress", "Family", "Responsibility", "Balance"],
+  },
+  {
+    question: "Are influencers good role models?",
+    words: ["Image", "Trust", "Audience", "Pressure", "Authenticity"],
+  },
+  {
+    question: "Is traveling alone worth it?",
+    words: ["Confidence", "Risk", "Discovery", "Loneliness", "Growth"],
+  },
+  {
+    question: "Should public transport be free?",
+    words: ["Taxes", "Access", "Traffic", "Equity", "Environment"],
+  },
+  {
+    question: "Is competition healthy?",
+    words: ["Motivation", "Stress", "Excellence", "Comparison", "Teamwork"],
+  },
+  {
+    question: "Should pets be allowed at work?",
+    words: ["Comfort", "Allergy", "Distraction", "Culture", "Policy"],
+  },
+  {
+    question: "Is online shopping too convenient?",
+    words: ["Impulse", "Delivery", "Returns", "Local", "Choice"],
+  },
+  {
+    question: "Should school start later in the day?",
+    words: ["Teenagers", "Focus", "Commute", "Rhythm", "Grades"],
+  },
+  {
+    question: "Are exams a good way to measure learning?",
+    words: ["Memory", "Pressure", "Fairness", "Skill", "Feedback"],
+  },
+  {
+    question: "Is failure necessary for success?",
+    words: ["Resilience", "Ego", "Lesson", "Risk", "Perspective"],
+  },
+  {
+    question: "Should everyone learn a second language?",
+    words: ["Culture", "Career", "Identity", "Practice", "Empathy"],
+  },
+  {
+    question: "Is fame worth the cost?",
+    words: ["Privacy", "Influence", "Expectation", "Attention", "Longevity"],
+  },
+  {
+    question: "Should junk food ads target children?",
+    words: ["Habit", "Health", "Marketing", "Choice", "Parents"],
+  },
+  {
+    question: "Is working from cafes productive?",
+    words: ["Ambience", "Focus", "Wi-Fi", "Routine", "Distraction"],
+  },
+  {
+    question: "Should birthdays be a big celebration?",
+    words: ["Ritual", "Memory", "Cost", "Expectations", "Gratitude"],
+  },
+  {
+    question: "Are documentaries better than movies for learning?",
+    words: ["Fact", "Emotion", "Narration", "Bias", "Curiosity"],
+  },
+  {
+    question: "Should people take gap years?",
+    words: ["Maturity", "Adventure", "Delay", "Purpose", "Experience"],
+  },
+  {
+    question: "Is owning a car still important?",
+    words: ["Freedom", "Cost", "Status", "Commute", "Maintenance"],
+  },
+  {
+    question: "Should news be personalized by algorithms?",
+    words: ["Filter", "Relevance", "Bias", "Awareness", "Control"],
+  },
+  {
+    question: "Is boredom good for creativity?",
+    words: ["Silence", "Imagination", "Restlessness", "Ideas", "Attention"],
+  },
+  {
+    question: "Should humans trust self-driving cars?",
+    words: ["Safety", "Control", "Error", "Convenience", "Ethics"],
+  },
 ]
 
 export function getRandomTopic(): Topic {
