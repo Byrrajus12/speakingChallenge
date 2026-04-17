@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Play, RotateCcw, Mic, Zap } from "lucide-react"
 import {
   getRandomTopic,
@@ -12,20 +12,40 @@ import {
 } from "@/lib/game-data"
 
 type GameState = "idle" | "countdown" | "playing" | "finished"
+type FlashOverlayState = {
+  word: string
+  targetX: number
+  targetY: number
+  visible: boolean
+  transforming: boolean
+}
 
 export function SpeechChallenge() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
+  const [creatorMode, setCreatorMode] = useState(false)
   const [gameState, setGameState] = useState<GameState>("idle")
   const [topic, setTopic] = useState<Topic | null>(null)
   const [currentWordIndex, setCurrentWordIndex] = useState(-1)
   const [timeLeft, setTimeLeft] = useState(getGameConfig("medium").totalTime)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [countdownTime, setCountdownTime] = useState(getGameConfig("medium").prepTime)
+  const [flashOverlay, setFlashOverlay] = useState<FlashOverlayState | null>(null)
+  const [creatorDisplayWord, setCreatorDisplayWord] = useState<string | null>(null)
+  const [creatorWordVisible, setCreatorWordVisible] = useState(false)
+
+  const currentWordTargetRef = useRef<HTMLDivElement | null>(null)
+  const flashTransformTimerRef = useRef<number | null>(null)
+  const flashCleanupTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem(DIFFICULTY_STORAGE_KEY)
     if (stored === "easy" || stored === "medium" || stored === "hard") {
       setDifficulty(stored)
+    }
+
+    const storedCreator = localStorage.getItem("speechchall_creator")
+    if (storedCreator === "true") {
+      setCreatorMode(true)
     }
   }, [])
 
@@ -34,11 +54,33 @@ export function SpeechChallenge() {
     localStorage.setItem(DIFFICULTY_STORAGE_KEY, newDifficulty)
   }
 
+  const handleCreatorModeToggle = () => {
+    const newValue = !creatorMode
+    setCreatorMode(newValue)
+    localStorage.setItem("speechchall_creator", String(newValue))
+  }
+
+  const clearFlashTimers = () => {
+    if (flashTransformTimerRef.current !== null) {
+      window.clearTimeout(flashTransformTimerRef.current)
+      flashTransformTimerRef.current = null
+    }
+
+    if (flashCleanupTimerRef.current !== null) {
+      window.clearTimeout(flashCleanupTimerRef.current)
+      flashCleanupTimerRef.current = null
+    }
+  }
+
   const gameConfig = getGameConfig(difficulty)
 
   const startGame = useCallback(() => {
     const newTopic = getRandomTopic()
     const config = getGameConfig(difficulty)
+    clearFlashTimers()
+    setFlashOverlay(null)
+    setCreatorDisplayWord(null)
+    setCreatorWordVisible(false)
     setTopic(newTopic)
     setGameState("countdown")
     setCurrentWordIndex(-1)
@@ -49,6 +91,10 @@ export function SpeechChallenge() {
 
   const resetGame = useCallback(() => {
     const config = getGameConfig(difficulty)
+    clearFlashTimers()
+    setFlashOverlay(null)
+    setCreatorDisplayWord(null)
+    setCreatorWordVisible(false)
     setGameState("idle")
     setTopic(null)
     setCurrentWordIndex(-1)
@@ -117,8 +163,89 @@ export function SpeechChallenge() {
   const currentWord = topic?.words[currentWordIndex]
   const isIdle = gameState === "idle"
 
+  useEffect(() => {
+    if (gameState !== "playing") {
+      clearFlashTimers()
+      setFlashOverlay(null)
+      setCreatorDisplayWord(null)
+      setCreatorWordVisible(false)
+      return
+    }
+
+    if (!creatorMode) {
+      clearFlashTimers()
+      setFlashOverlay(null)
+      setCreatorDisplayWord(currentWord ?? null)
+      setCreatorWordVisible(Boolean(currentWord))
+    }
+  }, [creatorMode, currentWord, gameState])
+
+  useEffect(() => {
+    if (!creatorMode || gameState !== "playing" || currentWordIndex < 0 || !currentWord || !currentWordTargetRef.current) {
+      return
+    }
+
+    clearFlashTimers()
+    setCreatorWordVisible(false)
+
+    const targetRect = currentWordTargetRef.current.getBoundingClientRect()
+    const targetX = targetRect.left + targetRect.width / 2
+    const targetY = targetRect.top + targetRect.height / 2
+
+    setFlashOverlay({
+      word: currentWord,
+      targetX,
+      targetY,
+      visible: false,
+      transforming: false,
+    })
+
+    window.requestAnimationFrame(() => {
+      setFlashOverlay((current) => (current ? { ...current, visible: true } : current))
+    })
+
+    flashTransformTimerRef.current = window.setTimeout(() => {
+      setFlashOverlay((current) => (current ? { ...current, transforming: true } : current))
+      setCreatorDisplayWord(currentWord)
+      setCreatorWordVisible(true)
+    }, 1350)
+
+    flashCleanupTimerRef.current = window.setTimeout(() => {
+      setFlashOverlay(null)
+      clearFlashTimers()
+    }, 2050)
+
+    return () => {
+      clearFlashTimers()
+    }
+  }, [creatorMode, currentWord, currentWordIndex, gameState])
+
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden flex flex-col items-center px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-5 md:min-h-[100dvh] md:justify-center md:p-8">
+      {flashOverlay && (
+        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+          <div
+            className={`absolute inset-0 bg-foreground transition-opacity duration-[700ms] ease-in-out ${
+              flashOverlay.transforming ? "opacity-0" : flashOverlay.visible ? "opacity-[0.95]" : "opacity-0"
+            }`}
+          />
+          <span
+            className={`absolute inline-flex items-center justify-center bg-accent text-accent-foreground px-6 sm:px-8 py-4 rounded-xl border-4 border-foreground shadow-[6px_6px_0px_0px] shadow-foreground text-2xl sm:text-3xl md:text-4xl font-bold transform-gpu transition-all ${
+              flashOverlay.transforming ? "duration-[700ms] ease-in-out" : "duration-[350ms] ease-out"
+            }`}
+            style={{
+              left: flashOverlay.transforming ? `${flashOverlay.targetX}px` : "50vw",
+              top: flashOverlay.transforming ? `${flashOverlay.targetY}px` : "50vh",
+              opacity: flashOverlay.transforming ? 0 : flashOverlay.visible ? 1 : 0,
+              transform: flashOverlay.transforming
+                ? "translate(-50%, -50%) scale(1)"
+                : "translate(-50%, -50%) scale(2.15)",
+            }}
+          >
+            {flashOverlay.word}
+          </span>
+        </div>
+      )}
       {/* Decorative elements kept on mobile, but resized and moved to safer edges */}
       <div
         aria-hidden="true"
@@ -170,7 +297,7 @@ export function SpeechChallenge() {
                 Start Challenge
               </button>
 
-              <div className="mt-6">
+              <div className="mt-6 relative w-full flex items-center justify-center">
                 <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-xl border-3 border-foreground relative">
                   <div
                     className="absolute top-1 bottom-1 bg-primary rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px] shadow-foreground transition-all duration-300 ease-out"
@@ -196,6 +323,26 @@ export function SpeechChallenge() {
                     </button>
                   ))}
                 </div>
+
+                <button
+                  onClick={handleCreatorModeToggle}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-[11px] leading-none text-muted-foreground hover:text-foreground transition-colors"
+                  aria-pressed={creatorMode}
+                  aria-label="Toggle creator mode"
+                >
+                  <span>Creator mode</span>
+                  <span
+                    className={`relative block h-3.5 w-7 rounded-full border-2 border-foreground transition-colors ${
+                      creatorMode ? "bg-primary" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-[1px] h-2 w-2 rounded-full bg-foreground transition-all duration-200 ${
+                        creatorMode ? "left-3.5" : "left-[1px]"
+                      }`}
+                    />
+                  </span>
+                </button>
               </div>
             </div>
           )}
@@ -251,13 +398,39 @@ export function SpeechChallenge() {
                     Incorporate this word
                   </p>
                 )}
-                <div className="min-h-[100px] flex items-center justify-center">
+                <div ref={currentWordTargetRef} className="min-h-[100px] flex items-center justify-center">
                   {currentWordIndex >= 0 && currentWord ? (
+                    creatorMode ? (
+                      <div>
+                        {creatorDisplayWord ? (
+                          <span
+                            className={`inline-block bg-accent text-accent-foreground px-6 sm:px-8 py-4 rounded-xl border-4 border-foreground shadow-[6px_6px_0px_0px] shadow-foreground text-2xl sm:text-3xl md:text-4xl font-bold transition-opacity duration-[700ms] ease-in-out ${
+                              creatorWordVisible ? "opacity-100" : "opacity-0"
+                            }`}
+                          >
+                            {creatorDisplayWord}
+                          </span>
+                        ) : (
+                          <div className="flex gap-2">
+                            {[...Array(3)].map((_, i) => (
+                              <div
+                                key={i}
+                                className="w-4 h-4 bg-muted-foreground rounded-full animate-bounce"
+                                style={{ animationDelay: `${i * 0.15}s` }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                     <div className="animate-in zoom-in-50 fade-in duration-300">
-                      <span className="inline-block bg-accent text-accent-foreground px-6 sm:px-8 py-4 rounded-xl border-4 border-foreground shadow-[6px_6px_0px_0px] shadow-foreground text-2xl sm:text-3xl md:text-4xl font-bold">
+                      <span
+                        className="inline-block bg-accent text-accent-foreground px-6 sm:px-8 py-4 rounded-xl border-4 border-foreground shadow-[6px_6px_0px_0px] shadow-foreground text-2xl sm:text-3xl md:text-4xl font-bold"
+                      >
                         {currentWord}
                       </span>
                     </div>
+                    )
                   ) : (
                     <div className="flex gap-2">
                       {[...Array(3)].map((_, i) => (
