@@ -3,6 +3,16 @@ export interface Topic {
   words: string[]
 }
 
+export type Difficulty = "easy" | "medium" | "hard"
+
+export const DIFFICULTY_STORAGE_KEY = "speechchall_difficulty"
+
+export const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; description: string }> = {
+  easy: { label: "Easy", description: "10s prep" },
+  medium: { label: "Medium", description: "5s prep" },
+  hard: { label: "Hard", description: "3s prep" },
+}
+
 export const topics: Topic[] = [
   {
     question: "Is coffee overrated?",
@@ -154,10 +164,16 @@ export function getRandomTopic(): Topic {
   return topics[Math.floor(Math.random() * topics.length)]
 }
 
-// Game timing configuration
-export const GAME_CONFIG = {
-  totalTime: 60, // seconds
-  firstWordDelay: 5, // seconds before first word
-  wordInterval: 10, // seconds between words
-  wordCount: 5,
+export function getGameConfig(difficulty: Difficulty = "medium") {
+  const difficultyTiming: Record<Difficulty, { prepTime: number; firstWordDelay: number; wordInterval: number }> = {
+    easy: { prepTime: 10, firstWordDelay: 5, wordInterval: 15 },
+    medium: { prepTime: 5, firstWordDelay: 5, wordInterval: 10 },
+    hard: { prepTime: 3, firstWordDelay: 5, wordInterval: 8 },
+  }
+
+  return {
+    totalTime: 60,
+    ...difficultyTiming[difficulty],
+    wordCount: 5,
+  }
 }

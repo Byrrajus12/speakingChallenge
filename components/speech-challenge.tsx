@@ -2,55 +2,82 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Play, RotateCcw, Mic, Zap } from "lucide-react"
-import { getRandomTopic, GAME_CONFIG, type Topic } from "@/lib/game-data"
+import {
+  getRandomTopic,
+  getGameConfig,
+  DIFFICULTY_CONFIG,
+  DIFFICULTY_STORAGE_KEY,
+  type Topic,
+  type Difficulty,
+} from "@/lib/game-data"
 
 type GameState = "idle" | "countdown" | "playing" | "finished"
 
-const COUNTDOWN_DURATION = 5 // 5 second "get ready" phase
-
 export function SpeechChallenge() {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium")
   const [gameState, setGameState] = useState<GameState>("idle")
   const [topic, setTopic] = useState<Topic | null>(null)
   const [currentWordIndex, setCurrentWordIndex] = useState(-1)
-  const [timeLeft, setTimeLeft] = useState(GAME_CONFIG.totalTime)
+  const [timeLeft, setTimeLeft] = useState(getGameConfig("medium").totalTime)
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [countdownTime, setCountdownTime] = useState(COUNTDOWN_DURATION)
+  const [countdownTime, setCountdownTime] = useState(getGameConfig("medium").prepTime)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(DIFFICULTY_STORAGE_KEY)
+    if (stored === "easy" || stored === "medium" || stored === "hard") {
+      setDifficulty(stored)
+    }
+  }, [])
+
+  const handleDifficultyChange = (newDifficulty: Difficulty) => {
+    setDifficulty(newDifficulty)
+    localStorage.setItem(DIFFICULTY_STORAGE_KEY, newDifficulty)
+  }
+
+  const gameConfig = getGameConfig(difficulty)
 
   const startGame = useCallback(() => {
     const newTopic = getRandomTopic()
+    const config = getGameConfig(difficulty)
     setTopic(newTopic)
     setGameState("countdown")
     setCurrentWordIndex(-1)
-    setTimeLeft(GAME_CONFIG.totalTime)
+    setTimeLeft(config.totalTime)
     setElapsedTime(0)
-    setCountdownTime(COUNTDOWN_DURATION)
-  }, [])
+    setCountdownTime(config.prepTime)
+  }, [difficulty])
 
   const resetGame = useCallback(() => {
+    const config = getGameConfig(difficulty)
     setGameState("idle")
     setTopic(null)
     setCurrentWordIndex(-1)
-    setTimeLeft(GAME_CONFIG.totalTime)
+    setTimeLeft(config.totalTime)
     setElapsedTime(0)
-    setCountdownTime(COUNTDOWN_DURATION)
-  }, [])
+    setCountdownTime(config.prepTime)
+  }, [difficulty])
 
   // Countdown timer (get ready phase)
   useEffect(() => {
     if (gameState !== "countdown") return
 
+    if (gameConfig.prepTime <= 0) {
+      setGameState("playing")
+      return
+    }
+
     const interval = setInterval(() => {
       setCountdownTime((prev) => {
         if (prev <= 1) {
           setGameState("playing")
-          return COUNTDOWN_DURATION
+          return gameConfig.prepTime
         }
         return prev - 1
       })
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [gameState])
+  }, [gameState, gameConfig.prepTime])
 
   // Main game timer (starts after countdown)
   useEffect(() => {
@@ -59,9 +86,9 @@ export function SpeechChallenge() {
     const interval = setInterval(() => {
       setElapsedTime((prev) => {
         const newTime = prev + 1
-        setTimeLeft(GAME_CONFIG.totalTime - newTime)
+        setTimeLeft(gameConfig.totalTime - newTime)
 
-        if (newTime >= GAME_CONFIG.totalTime) {
+        if (newTime >= gameConfig.totalTime) {
           setGameState("finished")
           return prev
         }
@@ -70,23 +97,23 @@ export function SpeechChallenge() {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [gameState])
+  }, [gameState, gameConfig.totalTime])
 
   // Word reveal logic
   useEffect(() => {
     if (gameState !== "playing" || !topic) return
 
     // Calculate which word should be shown based on elapsed time
-    if (elapsedTime >= GAME_CONFIG.firstWordDelay) {
+    if (elapsedTime >= gameConfig.firstWordDelay) {
       const wordsSinceFirst = Math.floor(
-        (elapsedTime - GAME_CONFIG.firstWordDelay) / GAME_CONFIG.wordInterval
+        (elapsedTime - gameConfig.firstWordDelay) / gameConfig.wordInterval
       )
       const newIndex = Math.min(wordsSinceFirst, topic.words.length - 1)
       setCurrentWordIndex(newIndex)
     }
-  }, [elapsedTime, gameState, topic])
+  }, [elapsedTime, gameState, topic, gameConfig.firstWordDelay, gameConfig.wordInterval])
 
-  const progressPercentage = (elapsedTime / GAME_CONFIG.totalTime) * 100
+  const progressPercentage = (elapsedTime / gameConfig.totalTime) * 100
   const currentWord = topic?.words[currentWordIndex]
   const isIdle = gameState === "idle"
 
@@ -118,9 +145,7 @@ export function SpeechChallenge() {
               <h1 className="text-[2.2rem] sm:text-4xl md:text-5xl leading-tight font-bold tracking-tight text-balance">
                 Think Fast, <span className="text-primary">Speak Well</span>
               </h1>
-              <p className="mt-2.5 sm:mt-3 text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
-                Speak on a topic while incorporating the words that appear
-              </p>
+
             </>
           )}
         </header>
@@ -144,6 +169,34 @@ export function SpeechChallenge() {
                 <Play className="w-6 h-6" />
                 Start Challenge
               </button>
+
+              <div className="mt-6">
+                <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-xl border-3 border-foreground relative">
+                  <div
+                    className="absolute top-1 bottom-1 bg-primary rounded-lg border-2 border-foreground shadow-[2px_2px_0px_0px] shadow-foreground transition-all duration-300 ease-out"
+                    style={{
+                      width: "calc(33.333% - 4px)",
+                      left: difficulty === "easy" ? "4px" : difficulty === "medium" ? "calc(33.333% + 2px)" : "calc(66.666%)",
+                    }}
+                  />
+                  {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => handleDifficultyChange(level)}
+                      className={`relative z-10 bg-transparent flex flex-col items-center px-4 py-2 rounded-lg transition-colors duration-300 ${
+                        difficulty === level
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="font-bold text-sm">{DIFFICULTY_CONFIG[level].label}</span>
+                      <span className={`text-xs transition-colors duration-300 ${difficulty === level ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        {DIFFICULTY_CONFIG[level].description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -288,7 +341,7 @@ export function SpeechChallenge() {
           <div className="mt-4 md:mt-6 grid grid-cols-3 gap-2 md:gap-4">
             {[
               { num: "1", text: "Get a random topic to speak about" },
-              { num: "2", text: "New words appear every 10 seconds" },
+              { num: "2", text: `New words appear every ${gameConfig.wordInterval}s` },
               { num: "3", text: "Incorporate each word into your speech" },
             ].map((item) => (
               <div
