@@ -238,8 +238,8 @@ export function SpeechChallenge() {
               top: flashOverlay.transforming ? `${flashOverlay.targetY}px` : "50vh",
               opacity: flashOverlay.transforming ? 0 : flashOverlay.visible ? 1 : 0,
               transform: flashOverlay.transforming
-                ? "translate(-50%, -50%) scale(1)"
-                : "translate(-50%, -50%) scale(2.15)",
+                ? `translate(-50%, -50%) scale(1)${creatorMode ? " scaleX(-1)" : ""}`
+                : `translate(-50%, -50%) scale(2.15)${creatorMode ? " scaleX(-1)" : ""}`,
             }}
           >
             {flashOverlay.word}
